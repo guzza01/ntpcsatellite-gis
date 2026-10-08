@@ -1,11 +1,11 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>新北市工程重機械智慧編管與動態調度系統</title>
 
-  <!-- Tailwind CSS 樣式庫 -->
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- FontAwesome 圖示 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -19,7 +19,6 @@
     body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; }
     #map { height: 100%; width: 100%; z-index: 1; }
     .custom-marker { display: flex; align-items: center; justify-content: center; border-radius: 50%; color: white; border: 2px solid #ffffff; }
-    /* 自訂捲軸樣式 */
     ::-webkit-scrollbar { width: 6px; }
     ::-webkit-scrollbar-track { background: #0f172a; }
     ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
@@ -50,11 +49,11 @@
 
   <!-- 主內容區域 -->
   <main class="flex-1 flex overflow-hidden">
-
-    <!-- 左側面板：數據與快捷控制 -->
+    
+    <!-- 左側數據面板 -->
     <aside class="w-80 bg-slate-900/95 border-r border-slate-800 p-4 flex flex-col space-y-4 overflow-y-auto z-10">
-
-      <!-- 卡片 1：全市編管總重機械 -->
+      
+      <!-- 卡片 1 -->
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 relative shadow">
         <div class="text-xs font-semibold text-slate-400 mb-1">全市編管總重機械</div>
         <div class="flex items-baseline space-x-2">
@@ -66,7 +65,7 @@
         </button>
       </div>
 
-      <!-- 卡片 2：低軌衛星雙模鏈結 -->
+      <!-- 卡片 2 -->
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 relative shadow">
         <div class="text-xs font-semibold text-slate-400 mb-1">低軌衛星 ( LEO ) 雙模鏈結</div>
         <div class="flex items-baseline space-x-2">
@@ -78,7 +77,7 @@
         </span>
       </div>
 
-      <!-- 卡片 3：烏來山區備援能量 -->
+      <!-- 卡片 3 -->
       <div class="bg-slate-800/60 border border-slate-700/60 rounded-xl p-4 relative shadow">
         <div class="text-xs font-semibold text-slate-400 mb-1">烏來山區備援能量 (20T+)</div>
         <div class="flex items-baseline space-x-2">
@@ -101,7 +100,7 @@
         </select>
       </div>
 
-      <!-- AI 處置提示 -->
+      <!-- AI 提示 -->
       <div class="bg-purple-950/30 border border-purple-800/50 rounded-xl p-3 text-xs text-purple-300/80 leading-relaxed">
         <div class="font-bold text-purple-400 mb-1 flex items-center">
           <i class="fa-solid fa-brain mr-1.5"></i>AI 聯網動員與徵用處置
@@ -111,11 +110,11 @@
 
     </aside>
 
-    <!-- 中間：Leaflet 地圖視窗 -->
+    <!-- 中間：地圖 -->
     <section class="flex-1 relative">
       <div id="map"></div>
 
-      <!-- 地圖圖例 -->
+      <!-- 圖例 -->
       <div class="absolute bottom-4 left-4 z-[1000] bg-slate-900/90 border border-slate-700/80 px-4 py-2.5 rounded-xl flex items-center space-x-4 text-xs shadow-lg backdrop-blur">
         <div class="flex items-center space-x-1.5"><i class="fa-solid fa-truck-monster text-blue-400"></i><span>挖土機</span></div>
         <div class="flex items-center space-x-1.5"><i class="fa-solid fa-truck-ramp-box text-amber-400"></i><span>起重機</span></div>
@@ -124,10 +123,10 @@
       </div>
     </section>
 
-    <!-- 右側：即時狀態與衛星指令日誌 -->
+    <!-- 右側面板 -->
     <aside class="w-96 bg-slate-900/95 border-l border-slate-800 p-4 flex flex-col space-y-4 overflow-hidden z-10">
-
-      <!-- 機具即時狀態詳情卡片 -->
+      
+      <!-- 詳情 -->
       <div class="flex-1 flex flex-col min-h-0 bg-slate-800/30 border border-slate-700/50 rounded-xl p-4 shadow">
         <h3 class="text-xs font-bold text-slate-300 mb-3 flex items-center">
           <i class="fa-solid fa-truck-observatory mr-2 text-blue-400"></i>重機械即時狀態
@@ -138,15 +137,273 @@
         </div>
       </div>
 
-      <!-- 衛星指令傳送日誌 Console -->
+      <!-- 日誌 Console -->
       <div class="h-52 bg-slate-950 border border-slate-800 rounded-xl p-3 flex flex-col text-xs font-mono shadow-inner">
         <div class="flex justify-between items-center text-slate-400 mb-2 border-b border-slate-800 pb-1.5">
           <span class="flex items-center font-sans font-bold"><i class="fa-solid fa-clock-rotate-left mr-1.5 text-emerald-400"></i>衛星指令傳送日誌</span>
           <span class="text-[10px] text-slate-600">Live Log</span>
         </div>
         <div id="log-console" class="flex-1 overflow-y-auto space-y-1 text-slate-400 text-[11px] pr-1">
-          <div class="text-slate-500">[系統初始化] 衛星雙模通道建立中...</div>
+          <div class="text-slate-500">[系統初始化] 雙模通道建立中...</div>
         </div>
       </div>
 
-    </
+    </aside>
+
+  </main>
+
+  <script>
+    let map;
+    let markersLayer;
+    let machines = [];
+    let isSimulatingWulai = false;
+
+    // 新北市各行政區座標點
+    const districtCoords = {
+      "板橋區": [25.011, 121.462], "中和區": [24.998, 121.501], "土城區": [24.972, 121.444],
+      "樹林區": [24.981, 121.425], "鶯歌區": [24.954, 121.354], "三峽區": [24.934, 121.369],
+      "新店區": [24.957, 121.541], "烏來區": [24.865, 121.550], "坪林區": [24.937, 121.711],
+      "石碇區": [24.991, 121.658], "三重區": [25.061, 121.484], "新莊區": [25.036, 121.450],
+      "泰山區": [25.059, 121.431], "林口區": [25.077, 121.391], "蘆洲區": [25.085, 121.474],
+      "五股區": [25.084, 121.438], "八里區": [25.146, 121.398], "淡水區": [25.169, 121.440],
+      "三芝區": [25.258, 121.500], "石門區": [25.290, 121.567], "金山區": [25.221, 121.637],
+      "萬里區": [25.176, 121.689], "汐止區": [25.068, 121.661], "貢寮區": [25.022, 121.942],
+      "永和區": [25.008, 121.515]
+    };
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initMap();
+      loadDataWithFallback();
+    });
+
+    // 1. 初始化 Leaflet 地圖 (改用免費免 API Key 的 Esri / OSM 灰黑底圖)
+    function initMap() {
+      map = L.map('map', { zoomControl: false }).setView([24.980, 121.530], 11);
+      L.control.zoom({ position: 'topleft' }).addTo(map);
+
+      // 免費且無水印/免 Key 的 Esri Dark Gray Base Tile
+      L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Esri, DeLorme, NAVTEQ',
+        maxZoom: 16
+      }).addTo(map);
+
+      markersLayer = L.layerGroup().addTo(map);
+    }
+
+    // 2. 具備多重備援（CORS/CDN/本地專用網址）的 CSV 資料讀取機制
+    function loadDataWithFallback() {
+      const primaryUrl = "https://cdn.jsdelivr.net/gh/guzza01/ntpcsatellite-gis@main/list-1161008.csv";
+      const secondaryUrl = "https://raw.githubusercontent.com/guzza01/ntpcsatellite-gis/main/list-1161008.csv";
+
+      appendLog("正在透過 CDN 加速通道獲取 CSV 編管資料...");
+
+      fetch(primaryUrl)
+        .then(res => res.ok ? res.text() : Promise.reject(res.status))
+        .then(parseAndRender)
+        .catch(() => {
+          appendLog("CDN 通道繁忙，切換至 GitHub Raw 備援鏈結...");
+          return fetch(secondaryUrl)
+            .then(res => res.text())
+            .then(parseAndRender);
+        })
+        .catch(err => {
+          appendLog(`[網路提示] GitHub 跨網域阻擋 (${err})，自動啟動本地專用 CSV 解析。`);
+          loadLocalFallbackData();
+        });
+    }
+
+    // 解析 CSV 內容
+    function parseAndRender(csvText) {
+      const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      processDataRows(parsed.data);
+    }
+
+    // 資料處理主邏輯
+    function processDataRows(dataRows) {
+      machines = dataRows
+        .filter(row => row["*重機械類別"] && row["*經常駐地"])
+        .map((row, index) => {
+          const district = row["*經常駐地"].trim();
+          const baseCoord = districtCoords[district] || [25.011, 121.462];
+          
+          const lat = baseCoord[0] + (Math.random() - 0.5) * 0.035;
+          const lng = baseCoord[1] + (Math.random() - 0.5) * 0.035;
+
+          const weight = parseFloat(row["全重(噸)"]) || 0;
+          const rawCategory = row["*重機械類別"].trim();
+          const owner = row["*受雇(所屬)公司\n統一編號"] || row["*受雇(所屬)公司"] || "未指定廠商";
+
+          return {
+            id: row["唯一序號(不必填)"] ? row["唯一序號(不必填)"].trim() : `EQ-${101 + index}`,
+            type: `${weight}噸 ${rawCategory.replace(/^\d+-/, '')}`,
+            category: parseCategoryKey(rawCategory),
+            owner: owner.trim(),
+            district: district,
+            weight: weight,
+            lat: lat,
+            lng: lng,
+            status: "待命",
+            fuel: Math.floor(Math.random() * 25) + 75,
+            sat: true
+          };
+        });
+
+      appendLog(`✅ 資料載入完成！共載入 ${machines.length} 筆編管重機械。`);
+      populateDistrictSelect();
+      updateDashboardStats();
+      renderMarkers();
+    }
+
+    function parseCategoryKey(catStr) {
+      if (catStr.includes("挖土機")) return "excavator";
+      if (catStr.includes("起重機")) return "crane";
+      if (catStr.includes("推土機")) return "bulldozer";
+      return "loader";
+    }
+
+    function getMachineStyle(category, isSim, district) {
+      if (isSim && district === "烏來區") {
+        return { icon: "fa-triangle-exclamation", bg: "bg-red-600", text: "text-red-400" };
+      }
+      switch (category) {
+        case "excavator": return { icon: "fa-truck-monster", bg: "bg-blue-600", text: "text-blue-400" };
+        case "crane":     return { icon: "fa-truck-ramp-box", bg: "bg-amber-600", text: "text-amber-400" };
+        case "bulldozer": return { icon: "fa-tractor", bg: "bg-emerald-600", text: "text-emerald-400" };
+        case "loader":    return { icon: "fa-truck-pickup", bg: "bg-purple-600", text: "text-purple-400" };
+        default:          return { icon: "fa-truck-pickup", bg: "bg-slate-600", text: "text-slate-400" };
+      }
+    }
+
+    // 3. 繪製圖示
+    function renderMarkers() {
+      markersLayer.clearLayers();
+
+      machines.forEach(item => {
+        const style = getMachineStyle(item.category, isSimulatingWulai, item.district);
+        
+        const customIcon = L.divIcon({
+          className: 'custom-icon',
+          html: `<div class="${style.bg} custom-marker w-8 h-8 shadow-lg hover:scale-125 transition-transform cursor-pointer">
+                   <i class="fa-solid ${style.icon} text-xs"></i>
+                 </div>`,
+          iconSize: [32, 32],
+          iconAnchor: [16, 16]
+        });
+
+        const marker = L.marker([item.lat, item.lng], { icon: customIcon });
+        marker.on('click', () => showMachineDetail(item));
+        markersLayer.addLayer(marker);
+      });
+    }
+
+    // 4. 更新數據儀表板
+    function updateDashboardStats() {
+      document.getElementById('stat-total').innerText = machines.length;
+      document.getElementById('stat-sat').innerText = machines.filter(m => m.sat).length;
+      const wulaiCount = machines.filter(m => m.district === "烏來區").length;
+      document.getElementById('stat-wulai').innerText = wulaiCount;
+    }
+
+    function populateDistrictSelect() {
+      const select = document.getElementById('district-select');
+      select.innerHTML = '<option value="ALL">全部行政區</option>';
+      
+      const districts = [...new Set(machines.map(m => m.district))].sort();
+      districts.forEach(d => {
+        const count = machines.filter(m => m.district === d).length;
+        const opt = document.createElement('option');
+        opt.value = d;
+        opt.innerText = `${d} (${count} 臺)`;
+        select.appendChild(opt);
+      });
+    }
+
+    function showMachineDetail(item) {
+      const style = getMachineStyle(item.category, isSimulatingWulai, item.district);
+      const panel = document.getElementById('machine-detail-panel');
+
+      panel.innerHTML = `
+        <div class="w-full text-left space-y-3">
+          <div class="flex justify-between items-start border-b border-slate-700/60 pb-2">
+            <div>
+              <span class="text-[10px] font-mono text-slate-500">${item.id}</span>
+              <h4 class="text-sm font-bold text-slate-100">${item.type}</h4>
+            </div>
+            <span class="px-2 py-0.5 rounded text-[10px] font-semibold ${style.bg} text-white">${item.district}</span>
+          </div>
+          
+          <div class="grid grid-cols-2 gap-2 text-[11px]">
+            <div class="bg-slate-800/80 p-2 rounded border border-slate-700/50">
+              <span class="text-slate-500 block">編管廠商</span>
+              <span class="text-slate-200 font-medium truncate block">${item.owner}</span>
+            </div>
+            <div class="bg-slate-800/80 p-2 rounded border border-slate-700/50">
+              <span class="text-slate-500 block">預估油量</span>
+              <span class="text-emerald-400 font-bold">${item.fuel}%</span>
+            </div>
+          </div>
+
+          <div class="bg-slate-800/80 p-2.5 rounded border border-slate-700/50 text-[11px] space-y-1">
+            <div class="flex justify-between">
+              <span class="text-slate-500">當前動態：</span>
+              <span class="text-blue-400 font-semibold">${item.status}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-slate-500">衛星信號強度：</span>
+              <span class="text-emerald-400 font-mono">-92 dBm (優良)</span>
+            </div>
+          </div>
+
+          <button onclick="dispatchMachine('${item.id}')" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 rounded-lg text-xs transition shadow">
+            下達緊急徵用與動員指令 (Satellite Push)
+          </button>
+        </div>
+      `;
+
+      appendLog(`已選擇機具 [${item.id}] ${item.type} (${item.district})`);
+    }
+
+    function focusDistrict(district) {
+      if (district === "ALL") {
+        resetMapView();
+        return;
+      }
+      if (districtCoords[district]) {
+        map.flyTo(districtCoords[district], 13, { duration: 1.2 });
+        appendLog(`地圖視角已聚焦至：${district}`);
+      }
+    }
+
+    function resetMapView() {
+      map.flyTo([24.980, 121.530], 11, { duration: 1.2 });
+      document.getElementById('district-select').value = "ALL";
+      appendLog("地圖視角已重置為新北市全區。");
+    }
+
+    function toggleWulaiSim() {
+      isSimulatingWulai = !isSimulatingWulai;
+      renderMarkers();
+
+      if (isSimulatingWulai) {
+        focusDistrict("烏來區");
+        appendLog("⚠️ [演練啟動] 烏來區模擬地面通訊中斷！切換為 3GPP NTN 低軌衛星通道。");
+      } else {
+        appendLog("ℹ️ [演練結束] 恢復常態監控模式。");
+      }
+    }
+
+    function dispatchMachine(id) {
+      appendLog(`📡 [衛星發射] 已向重機具 ${id} 下達廣播動員指令。`);
+    }
+
+    function appendLog(msg) {
+      const consoleEl = document.getElementById('log-console');
+      const time = new Date().toLocaleTimeString();
+      const logItem = document.createElement('div');
+      logItem.innerHTML = `<span class="text-slate-600">[${time}]</span> ${msg}`;
+      consoleEl.appendChild(logItem);
+      consoleEl.scrollTop = consoleEl.scrollHeight;
+    }
+  </script>
+</body>
+</html>
