@@ -11,7 +11,7 @@
     <!-- Leaflet.js CSS & JS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <!-- FontAwesome 圖標 -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -225,7 +225,45 @@
             { id: "EQ-106", type: "25噸挖掘機", category: "excavator", owner: "冠亞工程", district: "烏來區", status: "待命", fuel: 88, sat: true, lat: 24.8510, lng: 121.5350 },
             { id: "EQ-107", type: "輪胎式挖掘機", category: "excavator", owner: "大峰重機", district: "三峽區", status: "待命", fuel: 95, sat: false, lat: 24.9330, lng: 121.3680 }
         ];
+        // 改用 let 宣告，之後才能重新賦值
+        let machines = [];
+        
+        // 讀取 GitHub Raw CSV 檔案
+        fetch("https://raw.githubusercontent.com/guzza01/ntpcsatellite-gis/main/list-1161008.csv")
+          .then(response => response.text())
+          .then(csvText => {
+            // 使用 PapaParse 解析 CSV 文字
+            const results = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+            
+            // 將 CSV 轉換成地圖/系統所需的物件格式
+            machines = results.data.map((row, index) => ({
+              id: row["唯一序號(不必填)"] || `EQ-${101 + index}`,
+              type: `${row["全重(噸)"]}噸 ${row["*重機械類別"]}`,
+              category: convertCategory(row["*重機械類別"]),
+              owner: row["*受雇(所屬)公司\n統一編號"] || row["*受雇(所屬)公司"],
+              district: row["*經常駐地"],
+              status: "待命",
+              fuel: 100
+            }));
+        
+            console.log("CSV 載入完成:", machines);
+            
+            // 💡 這裡呼叫地圖或畫面的初始化/更新渲染函式
+            // initMap(); 或 updateMarkers();
+          })
+          .catch(error => console.error("CSV 載入失敗:", error));
+        
+        // 分類對應輔助函式（將中文轉換成圖示用的 category 關鍵字）
+        function convertCategory(chineseCategory) {
+          if (!chineseCategory) return "loader";
+          if (chineseCategory.includes("挖土機")) return "excavator";
+          if (chineseCategory.includes("起重機")) return "crane";
+          if (chineseCategory.includes("推土機")) return "bulldozer";
+          return "loader";
+        }
 
+
+        
         function getMachineStyle(category, isSim, district) {
             if (isSim && district === "烏來區") {
                 return { icon: "fa-triangle-exclamation", bg: "bg-red-600", text: "text-red-400" };
