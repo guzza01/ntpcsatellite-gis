@@ -248,9 +248,9 @@
             map = L.map('map').setView([24.93, 121.55], 11);
 
             // 內政部國土測繪中心（通用電子地圖）- 完全免費免 API Key
-            L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
-                attribution: '&copy; <a href="https://maps.nlsc.gov.tw/">國土測繪圖資服務雲</a>',
-                maxZoom: 19
+           L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              attribution: '&copy; OpenStreetMap contributors'
             }).addTo(map);
 
             markersLayer = L.layerGroup().addTo(map);
