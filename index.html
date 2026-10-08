@@ -1,107 +1,77 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-  <meta charset="UTF-8">
-  <title>重機械管理系統</title>
-  <!-- 引入 PapaParse 解析 CSV 工具 -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
-</head>
-<body>
+// 宣告全域變數
+let machines = [];
 
-  <!-- 地圖或重機械清單容器區塊 -->
-  <div id="machine-list">載入中...</div>
+// 1. 取得並解析 CSV
+const csvUrl = "https://raw.githubusercontent.com/guzza01/ntpcsatellite-gis/main/list-1161008.csv";
 
-  <!-- JavaScript 腳本 -->
-  <script>
-    // 宣告 machines 陣列變數（全域變數，供後續繪圖或篩選使用）
-    let machines = [];
+fetch(csvUrl)
+  .then(response => {
+    if (!response.ok) throw new Error(`HTTP 錯誤: ${response.status}`);
+    return response.text();
+  })
+  .then(csvText => {
+    const parsed = Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true
+    });
 
-    // 1. 取得並解析 GitHub Raw CSV 資料
-    const csvUrl = "https://raw.githubusercontent.com/guzza01/ntpcsatellite-gis/main/list-1161008.csv";
+    // 解析與正規化資料
+    machines = parsed.data
+      .filter(row => row["*重機械類別"] && row["*經常駐地"]) // 過濾有效資料
+      .map((row, index) => {
+        const weight = parseFloat(row["全重(噸)"]) || 0;
+        const rawCategory = row["*重機械類別"] || "";
+        const district = row["*經常駐地"] || "";
 
-    fetch(csvUrl)
-      .then(response => {
-        if (!response.ok) {
-          throw new Error(`HTTP 錯誤！狀態碼: ${response.status}`);
-        }
-        return response.text();
-      })
-      .then(csvText => {
-        // 使用 PapaParse 解析 CSV 內容
-        const parsed = Papa.parse(csvText, {
-          header: true,
-          skipEmptyLines: true
-        });
-
-        // 將 CSV 欄位對應至系統使用的物件欄位格式
-        machines = parsed.data
-          .filter(row => row["*重機械類別"]) // 過濾掉空行或無效資料
-          .map((row, index) => {
-            const rawCat = row["*重機械類別"] || "";
-            return {
-              id: row["唯一序號(不必填)"] || `EQ-${101 + index}`,
-              type: `${row["全重(噸)"] || 0}噸 ${rawCat.replace(/^\d+-/, '')}`, // 清除數字前綴 (如 03-挖土機 -> 挖土機)
-              category: getCategoryKey(rawCat),
-              owner: row["*受雇(所屬)公司\n統一編號"] || row["*受雇(所屬)公司"] || "未指定公司",
-              district: row["*經常駐地"] || "未知區域",
-              status: "待命",
-              fuel: 100,
-              sat: true
-            };
-          });
-
-        console.log("資料載入並解析成功，共", machines.length, "筆筆數:", machines);
-
-        // 資料解析完畢後，執行渲染畫面的函式
-        renderMachines();
-      })
-      .catch(error => {
-        console.error("CSV 資料載入失敗:", error);
-        document.getElementById("machine-list").innerHTML = "<p style='color:red;'>資料載入失敗，請檢查網路或連結！</p>";
+        return {
+          id: row["唯一序號(不必填)"] || `EQ-${101 + index}`,
+          type: `${weight}噸 ${rawCategory.replace(/^\d+-/, '')}`,
+          category: getCategoryKey(rawCategory),
+          owner: row["*受雇(所屬)公司\n統一編號"] || row["*受雇(所屬)公司"] || "未指定廠商",
+          district: district,
+          weight: weight,
+          status: "待命",
+          fuel: Math.floor(Math.random() * 30) + 70, // 模擬油量 70%-100%
+          sat: true
+        };
       });
 
-    // 2. 將中文類別名稱對應至圖示所需的英文類別代碼 (category)
-    function getCategoryKey(chineseCat) {
-      if (chineseCat.includes("挖土機")) return "excavator";
-      if (chineseCat.includes("起重機")) return "crane";
-      if (chineseCat.includes("推土機")) return "bulldozer";
-      if (chineseCat.includes("鏟裝機")) return "loader";
-      return "loader"; // 預設類別
-    }
+    console.log(`成功載入 ${machines.length} 筆重機械編管資料`);
 
-    // 3. 根據類別與情境返回對應的 Icon 與顏色樣式
-    function getMachineStyle(category, isSim, district) {
-      if (isSim && district === "烏來區") {
-        return { icon: "fa-triangle-exclamation", bg: "bg-red-600", text: "text-red-400" };
-      }
-      switch (category) {
-        case "excavator":
-          return { icon: "fa-truck-monster", bg: "bg-blue-600", text: "text-blue-400" };
-        case "crane":
-          return { icon: "fa-truck-ramp-box", bg: "bg-amber-600", text: "text-amber-400" };
-        case "bulldozer":
-          return { icon: "fa-tractor", bg: "bg-emerald-600", text: "text-emerald-400" };
-        case "loader":
-          return { icon: "fa-truck-pickup", bg: "bg-purple-600", text: "text-purple-400" };
-        default:
-          return { icon: "fa-truck-pickup", bg: "bg-slate-600", text: "text-slate-400" };
-      }
-    }
+    // 2. 更新 UI 數據統計與畫面渲染
+    updateDashboardStats();
+    renderMapMarkers();
+  })
+  .catch(error => {
+    console.error("載入 CSV 失敗:", error);
+  });
 
-    // 4. 畫面渲染/圖標更新函式（可依據專案實際地圖邏輯調整）
-    function renderMachines() {
-      const container = document.getElementById("machine-list");
-      if (!container) return;
+// 類別對應輔助函式
+function getCategoryKey(chineseCat) {
+  if (chineseCat.includes("挖土機")) return "excavator";
+  if (chineseCat.includes("起重機")) return "crane";
+  if (chineseCat.includes("推土機")) return "bulldozer";
+  if (chineseCat.includes("鏟裝機")) return "loader";
+  return "loader";
+}
 
-      container.innerHTML = `<h3>目前編管機具數量：${machines.length} 臺</h3>`;
-      
-      // 範例：逐筆讀取資料並使用 getMachineStyle 取得樣式
-      machines.forEach(item => {
-        const style = getMachineStyle(item.category, false, item.district);
-        // 此處可替換為 Leaflet / Google Maps 新增 Marker 的程式碼
-        // console.log(`新增機具 [${item.id}]，圖示類別: ${style.icon}`);
-      });
-    }
-  </script>
-</body>
-</html>
+// 動態更新面板統計數據 (解決畫面數字不對問題)
+function updateDashboardStats() {
+  // 1. 全市總機具數
+  const totalCountEl = document.querySelector("#total-machines-count"); // 依您實際 HTML id 調整
+  if (totalCountEl) totalCountEl.innerText = machines.length;
+
+  // 2. 烏來區備援能量 (計算烏來區總重與數量)
+  const wulaiMachines = machines.filter(m => m.district === "烏來區");
+  const wulaiCountEl = document.querySelector("#wulai-count"); // 依您實際 HTML id 調整
+  if (wulaiCountEl) wulaiCountEl.innerText = wulaiMachines.length;
+}
+
+// 地圖/列表渲染函式
+function renderMapMarkers() {
+  // 在此寫入您原本的 Leaflet / Mapbox 地圖 Marker 畫圖邏輯
+  machines.forEach(item => {
+    // const style = getMachineStyle(item.category, false, item.district);
+    // addMarkerToMap(item, style);
+  });
+}
