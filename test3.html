@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新北市工程重機械智慧編管 GIS 儀表板</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Leaflet.js CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- FontAwesome 圖標 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        #map {
+            height: calc(100vh - 70px);
+            z-index: 1;
+        }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip {
+            background-color: #1f2937 !important;
+            color: #f3f4f6 !important;
+            border: 1px solid #374151;
+        }
+
+        /* 自訂地圖標記與文字標籤樣式 */
+        .custom-machine-marker {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            white-space: nowrap;
+        }
+        .marker-icon-box {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 14px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+            border: 2px solid #ffffff;
+            transition: all 0.3s ease;
+        }
+        .marker-label {
+            background-color: rgba(15, 23, 42, 0.85);
+            color: #f8fafc;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans overflow-hidden">
+
+    <!-- 頂部導航列 (Header) -->
+    <header class="h-[70px] bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="bg-blue-600 p-2 rounded-lg text-white">
+                <i class="fa-solid fa-satellite-dish text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold tracking-wide bg-gradient-to-r from-blue-400 to-teal-300 bg-clip-text text-transparent">
+                    新北市工程重機械智慧編管與動態調度系統
+                </h1>
+                <p class="text-xs text-slate-400">新北市政府工務局工程科 | 星際調度員 (Satellite Emergency Dispatcher)</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <button id="simBtn" onclick="toggleSimulation()" class="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 shadow-lg shadow-red-900/40 transition-all border border-red-500">
+                <i class="fa-solid fa-triangle-exclamation animate-bounce"></i>
+                <span>模擬烏來斷網/山崩演練</span>
+            </button>
+            <div class="bg-slate-800 px-3 py-1.5 rounded-md border border-slate-700 text-xs text-slate-300">
+                <i class="fa-solid fa-circle text-emerald-400 text-[10px] mr-1"></i>系統狀態：常態編管中
+            </div>
+        </div>
+    </header>
+
+    <!-- 主頁面布局：三欄式 -->
+    <div class="grid grid-cols-12 h-[calc(100vh-70px)]">
+
+        <!-- 左側面板：數據統計與機具清冊 (點擊可連動地圖) -->
+        <div class="col-span-3 bg-slate-900/90 border-r border-slate-800 p-4 flex flex-col gap-3 overflow-y-auto z-10">
+
+            <!-- 統計卡片 1 -->
+            <div onclick="focusAllMachines()" class="bg-slate-800/60 hover:bg-slate-800 p-3 rounded-xl border border-slate-700/50 cursor-pointer transition-all group">
+                <div class="text-slate-400 text-xs mb-1 flex justify-between">
+                    <span>全市編管總重機具</span>
+                    <i class="fa-solid fa-location-crosshairs text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-2xl font-extrabold text-blue-400" id="totalCount">32</span>
+                    <span class="text-xs bg-blue-500/20 text-blue-300 px-2 py-0.5 rounded">點擊查看全區</span>
+                </div>
+            </div>
+
+            <!-- 統計卡片 2 -->
+            <div onclick="focusSatelliteMachines()" class="bg-slate-800/60 hover:bg-slate-800 p-3 rounded-xl border border-slate-700/50 cursor-pointer transition-all group">
+                <div class="text-slate-400 text-xs mb-1 flex justify-between">
+                    <span>低軌衛星 ( LEO ) 雙模鏈結</span>
+                    <i class="fa-solid fa-location-crosshairs text-teal-400 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-2xl font-extrabold text-teal-400" id="satCount">8</span>
+                    <span class="text-xs bg-teal-500/20 text-teal-300 px-2 py-0.5 rounded">3GPP NTN 待命</span>
+                </div>
+            </div>
+
+            <!-- 統計卡片 3 -->
+            <div onclick="focusDistrict('烏來區')" class="bg-slate-800/60 hover:bg-slate-800 p-3 rounded-xl border border-slate-700/50 cursor-pointer transition-all group">
+                <div class="text-slate-400 text-xs mb-1 flex justify-between">
+                    <span>烏來山區備援能量 (20T+)</span>
+                    <i class="fa-solid fa-location-crosshairs text-amber-400 opacity-0 group-hover:opacity-100 transition-opacity"></i>
+                </div>
+                <div class="flex items-baseline justify-between">
+                    <span class="text-2xl font-extrabold text-amber-400">4</span>
+                    <span class="text-xs bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">飛至烏來聚焦</span>
+                </div>
+            </div>
+
+            <!-- 左側：重點機具快捷清冊 (含專屬 Icon) -->
+            <div class="bg-slate-800/40 border border-slate-700/80 rounded-xl p-3">
+                <div class="text-xs font-bold text-slate-300 mb-2 flex items-center justify-between">
+                    <span><i class="fa-solid fa-list-check text-blue-400 mr-1"></i>編管機具快捷定位</span>
+                    <span class="text-[10px] text-slate-500">點擊連動地圖與卡片</span>
+                </div>
+                <div id="machineList" class="space-y-1.5 max-h-[180px] overflow-y-auto pr-1">
+                    <!-- JS 動態生成項目 -->
+                </div>
+            </div>
+
+            <!-- AI 智慧建議面板 -->
+            <div id="aiPanel" class="bg-slate-800/40 border border-slate-700 rounded-xl p-3 flex-1 flex flex-col">
+                <h3 class="text-xs font-semibold text-slate-200 mb-1.5 flex items-center gap-1.5">
+                    <i class="fa-solid fa-brain text-purple-400"></i> AI 離網動員與徵用處置
+                </h3>
+                <div id="aiContent" class="text-[11px] text-slate-400 leading-relaxed overflow-y-auto">
+                    目前系統處於「常態監控」模式。編管重機具皆透過民用/衛星雙模回傳座標與保修狀態。
+                </div>
+            </div>
+        </div>
+
+        <!-- 中間面板：Leaflet GIS 地圖 -->
+        <div class="col-span-6 relative">
+            <div id="map"></div>
+            <!-- 地圖圖例 -->
+            <div class="absolute bottom-4 left-4 bg-slate-900/90 border border-slate-700 p-2.5 rounded-lg text-xs z-[1000] flex gap-4">
+                <div class="flex items-center gap-1.5"><i class="fa-solid fa-truck-monster text-blue-400"></i> 挖掘機</div>
+                <div class="flex items-center gap-1.5"><i class="fa-solid fa-truck-ramp-box text-amber-400"></i> 大型吊車</div>
+                <div class="flex items-center gap-1.5"><i class="fa-solid fa-tractor text-emerald-400"></i> 推土機</div>
+                <div class="flex items-center gap-1.5"><i class="fa-solid fa-truck-pickup text-purple-400"></i> 鏟裝機</div>
+            </div>
+        </div>
+
+        <!-- 右側面板：機具詳細卡片 -->
+        <div class="col-span-3 bg-slate-900/90 border-l border-slate-800 p-4 flex flex-col gap-4 overflow-y-auto z-10">
+            <h2 class="text-sm font-bold text-slate-200 border-b border-slate-800 pb-2 flex items-center gap-2">
+                <i class="fa-solid fa-truck-monster text-blue-400"></i> 重機械即時狀態
+            </h2>
+
+            <div id="detailCard" class="bg-slate-800/50 border border-slate-700/60 rounded-xl p-4 flex-1 flex flex-col justify-between">
+                <div class="text-center text-slate-500 text-xs py-10">
+                    請點擊左側清冊或地圖上的機具圖標查看詳細編管資料與通訊狀態
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- JavaScript 腳本 -->
+    <script>
+        // 1. 新北市重機具資料庫 (JSON)
+        const machines = [
+            { id: "EQ-101", type: "20噸履帶式挖掘機", category: "excavator", owner: "台新營造", district: "烏來區", status: "待命", fuel: 92, sat: true, lat: 24.8651, lng: 121.5502 },
+            { id: "EQ-102", type: "30噸重型挖掘機", category: "excavator", owner: "雙溪土木", district: "烏來區", status: "作業中", fuel: 78, sat: true, lat: 24.8720, lng: 121.5580 },
+            { id: "EQ-103", type: "50噸輪胎式吊車", category: "crane", owner: "北府重機", district: "坪林區", status: "待命", fuel: 85, sat: true, lat: 24.9380, lng: 121.7110 },
+            { id: "EQ-104", type: "大型推土機", category: "bulldozer", owner: "新北工程", district: "新店區", status: "待命", fuel: 64, sat: false, lat: 24.9580, lng: 121.5430 },
+            { id: "EQ-105", type: "鏟裝機(山貓)", category: "loader", owner: "順達營造", district: "石碇區", status: "作業中", fuel: 50, sat: false, lat: 24.9910, lng: 121.6580 },
+            { id: "EQ-106", type: "25噸挖掘機", category: "excavator", owner: "冠亞工程", district: "烏來區", status: "待命", fuel: 88, sat: true, lat: 24.8510, lng: 121.5350 },
+            { id: "EQ-107", type: "輪胎式挖掘機", category: "excavator", owner: "大峰重機", district: "三峽區", status: "待命", fuel: 95, sat: false, lat: 24.9330, lng: 121.3680 }
+        ];
+
+        // 判斷不同機具的 Icon 樣式與背景顏色
+        function getMachineStyle(category, isSim, district) {
+            if (isSim && district === "烏來區") {
+                return { icon: "fa-triangle-exclamation", bg: "bg-red-600", text: "text-red-400" };
+            }
+            switch (category) {
+                case "excavator": return { icon: "fa-truck-monster", bg: "bg-blue-600", text: "text-blue-400" };
+                case "crane":     return { icon: "fa-truck-ramp-box", bg: "bg-amber-600", text: "text-amber-400" };
+                case "bulldozer": return { icon: "fa-tractor", bg: "bg-emerald-600", text: "text-emerald-400" };
+                case "loader":    return { icon: "fa-truck-pickup", bg: "bg-purple-600", text: "text-purple-400" };
+                default:          return { icon: "fa-truck-pickup", bg: "bg-slate-600", text: "text-slate-400" };
+            }
+        }
+
+        let map, markersLayer, disasterCircle, roadBlockMarker;
+        let isSimulating = false;
+        let markerMap = {};
+
+        // 2. 初始化 Leaflet 地圖 (國土測繪中心底圖)
+        function initMap() {
+            map = L.map('map').setView([24.93, 121.55], 11);
+
+            L.tileLayer('https://wmts.nlsc.gov.tw/wmts/EMAP/default/GoogleMapsCompatible/{z}/{y}/{x}', {
+                attribution: '&copy; <a href="https://maps.nlsc.gov.tw/">內政部國土測繪中心</a> | 新北市政府工務局',
+                maxZoom: 19
+            }).addTo(map);
+
+            markersLayer = L.layerGroup().addTo(map);
+            renderMarkers();
+            renderLeftList();
+        }
+
+        // 3. 渲染地圖上的自訂 Icon 與文字標籤 (Custom HTML Icon)
+        function renderMarkers() {
+            markersLayer.clearLayers();
+            markerMap = {};
+
+            machines.forEach(m => {
+                const style = getMachineStyle(m.category, isSimulating, m.district);
+
+                // 自訂帶有 Icon 與動態文字標籤的 HTML 內容
+                const customIconHtml = `
+                    <div class="custom-machine-marker">
+                        <div class="marker-icon-box ${style.bg}">
+                            <i class="fa-solid ${style.icon}"></i>
+                        </div>
+                        <div class="marker-label">
+                            <span class="font-bold">${m.id}</span> <span class="text-[10px] opacity-80">(${m.type})</span>
+                        </div>
+                    </div>
+                `;
+
+                const customIcon = L.divIcon({
+                    html: customIconHtml,
+                    className: '', // 清空預設 class 避免樣式衝突
+                    iconSize: [160, 36],
+                    iconAnchor: [16, 18]
+                });
+
+                const marker = L.marker([m.lat, m.lng], { icon: customIcon });
+
+                marker.on('click', () => {
+                    flyToMachine(m);
+                });
+
+                markersLayer.addLayer(marker);
+                markerMap[m.id] = marker;
+            });
+        }
+
+        // 4. 生成左側機具快捷清冊 (包含專屬 Icon)
+        function renderLeftList() {
+            const listEl = document.getElementById('machineList');
+            listEl.innerHTML = machines.map(m => {
+                const style = getMachineStyle(m.category, false, m.district);
+                return `
+                    <div onclick="locateMachineById('${m.id}')"
+                         class="flex items-center justify-between p-1.5 bg-slate-900/80 hover:bg-blue-900/40 border border-slate-700/60 hover:border-blue-500 rounded cursor-pointer transition-all text-xs group">
+                        <div class="flex items-center gap-2 overflow-hidden">
+                            <i class="fa-solid ${style.icon} ${style.text} group-hover:scale-110 transition-transform"></i>
+                            <span class="font-bold text-slate-200 group-hover:text-blue-300">${m.id}</span>
+                            <span class="text-[10px] text-slate-400 truncate">${m.type}</span>
+                        </div>
+                        <span class="text-[10px] bg-slate-800 text-slate-300 px-1.5 py-0.5 rounded border border-slate-700">${m.district}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 5. 點擊連動地圖與視角定位
+        function locateMachineById(id) {
+            const m = machines.find(item => item.id === id);
+            if (m) flyToMachine(m);
+        }
+
+        function flyToMachine(m) {
+            map.flyTo([m.lat, m.lng], 14, { duration: 1.2 });
+            showDetail(m);
+        }
+
+        function focusDistrict(districtName) {
+            const targetMachines = machines.filter(m => m.district === districtName);
+            if (targetMachines.length > 0) {
+                const group = L.featureGroup(targetMachines.map(m => markerMap[m.id]));
+                map.flyToBounds(group.getBounds().pad(0.3));
+            }
+        }
+
+        function focusAllMachines() {
+            map.flyTo([24.93, 121.55], 11);
+        }
+
+        function focusSatelliteMachines() {
+            const satMachines = machines.filter(m => m.sat);
+            if (satMachines.length > 0) {
+                const group = L.featureGroup(satMachines.map(m => markerMap[m.id]));
+                map.flyToBounds(group.getBounds().pad(0.2));
+            }
+        }
+
+        // 6. 顯示右側詳細卡片
+        function showDetail(m) {
+            const style = getMachineStyle(m.category, false, m.district);
+            const detailCard = document.getElementById('detailCard');
+            detailCard.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-xs font-bold text-blue-400 bg-blue-950 px-2 py-0.5 rounded border border-blue-800">
+                                <i class="fa-solid ${style.icon} mr-1"></i>${m.id}
+                            </span>
+                            <h3 class="text-lg font-bold text-slate-100 mt-1">${m.type}</h3>
+                        </div>
+                        <span class="text-xs ${m.status === '待命' ? 'bg-emerald-500/20 text-emerald-300' : 'bg-amber-500/20 text-amber-300'} px-2 py-1 rounded">
+                            ${m.status}
+                        </span>
+                    </div>
+
+                    <div class="text-xs space-y-2 border-t border-slate-800 pt-3 text-slate-300">
+                        <div class="flex justify-between"><span>編管廠商：</span><span class="font-medium text-slate-100">${m.owner}</span></div>
+                        <div class="flex justify-between"><span>經常駐地：</span><span class="font-medium text-slate-100">${m.district}</span></div>
+                        <div class="flex justify-between"><span>座標經緯：</span><span class="font-mono text-slate-400">${m.lat.toFixed(4)}, ${m.lng.toFixed(4)}</span></div>
+                        <div class="flex justify-between"><span>機具油量：</span><span class="font-bold text-emerald-400">${m.fuel}%</span></div>
+                    </div>
+
+                    <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                        <div class="text-xs text-slate-400 mb-1">車載通訊模組狀態</div>
+                        <div class="flex items-center gap-2 text-xs">
+                            ${m.sat ?
+                                `<i class="fa-solid fa-satellite text-teal-400"></i><span class="text-teal-300 font-medium">低軌衛星 (LEO) / 4G 雙模在線</span>` :
+                                `<i class="fa-solid fa-signal text-slate-500"></i><span class="text-slate-400">地面 4G 單模 (無衛星)</span>`}
+                        </div>
+                    </div>
+                </div>
+
+                <button onclick="alert('已透過低軌衛星發送【緊急動員徵用指令】至 ${m.id} 駕駛艙螢幕！')"
+                        class="w-full mt-4 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold py-2.5 rounded-lg border border-blue-400 transition-all shadow-lg">
+                    <i class="fa-solid fa-paper-plane mr-1"></i> 發送衛星徵用指令
+                </button>
+            `;
+        }
+
+        // 7. 演練開關
+        function toggleSimulation() {
+            isSimulating = !isSimulating;
+            const simBtn = document.getElementById('simBtn');
+            const aiContent = document.getElementById('aiContent');
+
+            if (isSimulating) {
+                simBtn.classList.replace('bg-red-600', 'bg-slate-700');
+                simBtn.innerHTML = `<i class="fa-solid fa-rotate-left"></i> <span>重置演練狀態</span>`;
+
+                map.flyTo([24.8651, 121.5502], 13);
+
+                disasterCircle = L.circle([24.8651, 121.5502], {
+                    color: 'red',
+                    fillColor: '#f03',
+                    fillOpacity: 0.25,
+                    radius: 4000
+                }).addTo(map);
+
+                roadBlockMarker = L.marker([24.8800, 121.5550]).addTo(map)
+                    .bindPopup("<b>[災情告警] 台9甲線道路塌陷阻斷</b><br>地面 4G/5G 基地台倒塌訊號中斷！")
+                    .openPopup();
+
+                aiContent.innerHTML = `
+                    <div class="text-red-400 font-bold mb-1"><i class="fa-solid fa-triangle-exclamation"></i> 偵測烏來區基地台斷網！</div>
+                    <p class="mb-1">已自動切換為<b class="text-teal-300">「太空低軌衛星模式」</b>。</p>
+                    <p class="mb-1"><b>AI 調度匹配結果：</b></p>
+                    <ul class="list-disc pl-4 space-y-0.5 text-slate-300">
+                        <li>已鎖定區域內 3 台 20T+ 挖掘機。</li>
+                        <li>優先推薦 EQ-101 (距離1.2km/油量92%)。</li>
+                    </ul>
+                `;
+
+            } else {
+                simBtn.classList.replace('bg-slate-700', 'bg-red-600');
+                simBtn.innerHTML = `<i class="fa-solid fa-triangle-exclamation animate-bounce"></i> <span>模擬烏來斷網/山崩演練</span>`;
+
+                if (disasterCircle) map.removeLayer(disasterCircle);
+                if (roadBlockMarker) map.removeLayer(roadBlockMarker);
+
+                map.flyTo([24.93, 121.55], 11);
+                aiContent.innerHTML = `目前系統處於「常態監控」模式。編管重機具皆透過民用/衛星雙模回傳座標與保修狀態。`;
+            }
+
+            renderMarkers();
+        }
+
+        window.onload = initMap;
+    </script>
+</body>
+</html>
